@@ -17,22 +17,42 @@ module.exports =
         config.password,
         config
       )
+    }
 
-      this.umzug = new Umzug({
-        storage: 'sequelize',
-        storageOptions: {
-          sequelize: this.sequelize
-        },
-        migrations: {
-          params: [
-            this.sequelize.getQueryInterface(),
-            this.sequelize.constructor,
-            () => {
-              throw new Error('Migration tried to use old style "done" callback. Please upgrade to "umzug" and return a promise instead.')
-            }],
-          path: path.join(api.projectRoot, 'migrations'),
-          pattern: /\.js$/
+
+    getPaths(dirName) {
+      let result = [
+        path.normalize(path.join(api.projectRoot, dirName))
+      ];
+
+      for(const key in api.config.plugins) {
+        if(!!api.config.plugins[key].model) {
+          result.push(path.normalize(path.join(api.config.plugins[key].path, dirName)))
         }
+      }
+
+      return result.filter(dir => fs.existsSync(dir));
+    }
+
+    getUmzugs() {
+      const dirs = this.getPaths("migrations")
+      return dirs.map(dir => {
+        return new Umzug({
+          storage: 'sequelize',
+          storageOptions: {
+            sequelize: this.sequelize
+          },
+          migrations: {
+            params: [
+              this.sequelize.getQueryInterface(),
+              this.sequelize.constructor,
+              () => {
+                throw new Error('Migration tried to use old style "done" callback. Please upgrade to "umzug" and return a promise instead.')
+              }],
+            path: dir,
+            pattern: /\.js$/
+          }
+        })
       })
     }
 
@@ -57,8 +77,8 @@ module.exports =
         })
       }
 
-      let dir = path.normalize(path.join(api.projectRoot, 'models'))
-      importModelsFromDirectory(dir)
+      let dirs = this.getPaths("models");
+      dirs.forEach(importModelsFromDirectory)
       api.models = this.sequelize.models
       await this.test()
     }
@@ -77,19 +97,22 @@ module.exports =
         : options
 
       await checkMetaOldSchema()
-      await this.umzug.execute(options)
+      const umzugs = this.getUmzugs();
+      await Promise.all(umzugs.map(u => u.execute(options)));
     }
 
     async autoMigrate () {
       if (config.autoMigrate === null || config.autoMigrate === undefined || config.autoMigrate) {
         await checkMetaOldSchema()
-        await this.umzug.up()
+        const umzugs = this.getUmzugs();
+        await Promise.all(umzugs.map(u => u.up()));
       }
     }
 
     async migrateUndo () {
       await checkMetaOldSchema()
-      await this.umzug.down()
+      const umzugs = this.getUmzugs();
+      await Promise.all(umzugs.map(u => u.down()));
     }
 
     async test () {

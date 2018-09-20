@@ -15,7 +15,10 @@ const actionhero = new ActionHero.Process()
 let api
 
 const configChanges = {
-  plugins: {'ah-sequelize-plugin': { path: PACKAGE_PATH }}
+  plugins: {
+    'ah-sequelize-plugin': { path: PACKAGE_PATH },
+    'user-plugin': { path: `${__dirname}/plugins/cart`, model: true }
+  }
 }
 
 const CopyFile = async (src, dest) => {

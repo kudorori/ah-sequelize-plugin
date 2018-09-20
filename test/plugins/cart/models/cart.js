@@ -1,5 +1,5 @@
 module.exports = function (sequelize, DataTypes, api) {
-  const model = sequelize.define('User', {
+  const model = sequelize.define('Cart', {
     id: {
       type: DataTypes.INTEGER.UNSIGNED,
       autoIncrement: true,
